@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户管理</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>进销存管理系统</h1>
+            <div style="margin: 8px 0; font-size: 14px; color: #666;">
+                👤 <span th:text="${session.currentUser != null ? session.currentUser.username : '游客'}"></span>
+                <span th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">
+                    | <a th:href="@{/admin/users}" style="color:#3498db;">管理员面板</a>
+                </span>
+                | <a th:href="@{/logout}" style="color:#e74c3c;">退出</a>
+            </div>
+            <div class="nav">
+                <a th:href="@{/}">首页</a>
+                <a th:href="@{/products}">商品管理</a>
+                <a th:href="@{/purchases}">进货管理</a>
+                <a th:href="@{/sales}">销售管理</a>
+                <a th:href="@{/stock}">库存查询</a>
+                <a th:href="@{/report}">数据报表</a>
+                <a th:href="@{/customers}" class="active">客户管理</a>
+                <a th:href="@{/ai/chat}">AI助手</a>
+                <a th:href="@{/feedback}">用户反馈</a>
+                <a th:href="@{/admin/users}" th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">管理员面板</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>客户列表</h2>
+            <div style="margin-bottom: 15px;">
+                <button class="btn btn-primary" onclick="showModal('customerModal')">+ 新增客户</button>
+                <a th:href="@{/customers}" class="btn btn-primary">刷新</a>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>联系人</th>
+                        <th>电话</th>
+                        <th>类型</th>
+                        <th>结算方式</th>
+                        <th>欠款</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="c : ${customers}">
+                        <td th:text="${c.name}"></td>
+                        <td th:text="${c.contact}"></td>
+                        <td th:text="${c.phone}"></td>
+                        <td th:text="${c.type}"></td>
+                        <td th:text="${c.settlementMode}"></td>
+                        <td th:text="${c.currentBalance}" th:style="${c.currentBalance > 0 ? 'color:red;' : ''}"></td>
+                        <td>
+                            <a th:href="@{/customers/statement/{id}(id=${c.id})}" class="btn btn-primary" style="font-size: 12px;">对账</a>
+                            <form th:action="@{/customers/delete/{id}(id=${c.id})}" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('确认删除？')">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="customerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新增客户</h3>
+                <span class="modal-close" onclick="hideModal('customerModal')">&times;</span>
+            </div>
+            <form th:action="@{/customers/save}" method="post">
+                <div class="form-group">
+                    <label>客户名称 *</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>联系人</label>
+                    <input type="text" name="contact">
+                </div>
+                <div class="form-group">
+                    <label>电话</label>
+                    <input type="text" name="phone">
+                </div>
+                <div class="form-group">
+                    <label>类型</label>
+                    <select name="type">
+                        <option value="工厂">工厂</option>
+                        <option value="批发商">批发商</option>
+                        <option value="散客">散客</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>结算方式</label>
+                    <select name="settlementMode">
+                        <option value="现结">现结</option>
+                        <option value="月结">月结</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="button" class="btn btn-danger" onclick="hideModal('customerModal')">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showModal(id) { document.getElementById(id).classList.add('show'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+    </script>
+</body>
+</html>

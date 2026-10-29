@@ -1,0 +1,54 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: inventory-system
+
+  # 默认激活 local 配置；真实密钥放在 application-local.yml（已被 .gitignore 忽略）
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/inventory_db?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: ${JPA_SHOW_SQL:true}
+    properties:
+      hibernate:
+        format_sql: true
+
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    encoding: UTF-8
+    mode: HTML
+
+  mail:
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.ssl.enable: true
+      mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
+      mail.smtp.socketFactory.port: ${MAIL_PORT:465}
+      mail.smtp.timeout: 5000
+
+# 火山方舟（豆包）大模型接口
+ai:
+  api:
+    url: ${AI_API_URL:https://ark.cn-beijing.volces.com/api/v3/chat/completions}
+    key: ${AI_API_KEY:}
+    model: ${AI_API_MODEL:doubao-seed-1-8-251228}
+
+# OCR 识别（可选功能）
+tesseract:
+  datapath: ${TESSERACT_DATAPATH:D:/Tesseract-OCR/tessdata}
+  language: ${TESSERACT_LANGUAGE:chi_sim}

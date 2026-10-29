@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据报表 - 进销存管理系统</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .summary-cards { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .summary-card { flex: 1; min-width: 150px; background: #fff; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .summary-card .value { font-size: 28px; font-weight: bold; margin: 10px 0 5px; }
+        .summary-card .label { font-size: 14px; color: #666; }
+        .card-revenue .value { color: #3498db; }
+        .card-cost .value { color: #e74c3c; }
+        .card-profit .value { color: #27ae60; }
+        .card-margin .value { color: #f39c12; }
+        .card-sales .value { color: #9b59b6; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
+        .filter-bar .form-group { margin-bottom: 0; }
+        .filter-bar input[type="date"] { width: 150px; }
+        .toggle-group { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+        .toggle-group button { padding: 8px 16px; border: none; background: #fff; cursor: pointer; font-size: 14px; transition: 0.3s; }
+        .toggle-group button.active { background: #3498db; color: #fff; }
+        .toggle-group button:not(:last-child) { border-right: 1px solid #ddd; }
+        .chart-container { position: relative; height: 350px; margin-top: 20px; }
+        .profit-positive { color: #27ae60; }
+        .profit-negative { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>进销存管理系统</h1>
+            <div style="margin: 8px 0; font-size: 14px; color: #666;">
+                👤 <span th:text="${session.currentUser != null ? session.currentUser.username : '游客'}"></span>
+                <span th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">
+                    | <a th:href="@{/admin/users}" style="color:#3498db;">管理员面板</a>
+                </span>
+                | <a th:href="@{/logout}" style="color:#e74c3c;">退出</a>
+            </div>
+            <div class="nav">
+                <a th:href="@{/}">首页</a>
+                <a th:href="@{/products}">商品管理</a>
+                <a th:href="@{/purchases}">进货管理</a>
+                <a th:href="@{/sales}">销售管理</a>
+                <a th:href="@{/stock}">库存查询</a>
+                <a th:href="@{/report}" class="active">数据报表</a>
+                <a th:href="@{/ai/chat}">AI助手</a>
+                <a th:href="@{/feedback}">用户反馈</a>
+                <a th:href="@{/admin/users}" th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">管理员面板</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="filter-bar">
+            <form method="get" th:action="@{/report}" style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                <div class="form-group">
+                    <label>开始日期</label>
+                    <input type="date" name="startDate" th:value="${startDate}" required>
+                </div>
+                <div class="form-group">
+                    <label>结束日期</label>
+                    <input type="date" name="endDate" th:value="${endDate}" required>
+                </div>
+                <div class="form-group">
+                    <label>分组</label>
+                    <div class="toggle-group">
+                        <button type="submit" name="groupBy" value="day" th:classappend="${groupBy == 'day'} ? 'active'">按日</button>
+                        <button type="submit" name="groupBy" value="week" th:classappend="${groupBy == 'week'} ? 'active'">按周</button>
+                        <button type="submit" name="groupBy" value="month" th:classappend="${groupBy == 'month'} ? 'active'">按月</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">查询</button>
+            </form>
+        </div>
+
+        <div class="summary-cards">
+            <div class="summary-card card-sales">
+                <div class="label">销售笔数</div>
+                <div class="value" th:text="${summary.totalSales}">0</div>
+            </div>
+            <div class="summary-card card-revenue">
+                <div class="label">总销售额</div>
+                <div class="value" th:text="'¥' + ${summary.totalRevenue}">¥0.00</div>
+            </div>
+            <div class="summary-card card-cost">
+                <div class="label">总成本</div>
+                <div class="value" th:text="'¥' + ${summary.totalCost}">¥0.00</div>
+            </div>
+            <div class="summary-card card-profit">
+                <div class="label">总利润</div>
+                <div class="value" th:text="'¥' + ${summary.totalProfit}">¥0.00</div>
+            </div>
+            <div class="summary-card card-margin">
+                <div class="label">利润率</div>
+                <div class="value" th:text="${#numbers.formatDecimal(summary.profitMargin, 1, 2)} + '%'">0.00%</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>利润明细</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>销售笔数</th>
+                        <th>销售额</th>
+                        <th>成本</th>
+                        <th>利润</th>
+                        <th>利润率</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="stat : ${stats}">
+                        <td th:text="${stat.label}"></td>
+                        <td th:text="${stat.saleCount}"></td>
+                        <td th:text="'¥' + ${stat.revenue}"></td>
+                        <td th:text="'¥' + ${stat.cost}"></td>
+                        <td th:text="'¥' + ${stat.profit}" th:classappend="${stat.profit >= 0} ? 'profit-positive' : 'profit-negative'"></td>
+                        <td th:text="${#numbers.formatDecimal(stat.profitMargin, 1, 2)} + '%'"></td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(stats)}">
+                        <td colspan="6" class="empty-state">暂无数据</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>趋势图</h2>
+            <div class="chart-container">
+                <canvas id="profitChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js}"></script>
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const stats = /*[[${stats}]]*/ [];
+        const labels = stats.map(s => s.label);
+        const revenues = stats.map(s => parseFloat(s.revenue));
+        const costs = stats.map(s => parseFloat(s.cost));
+        const profits = stats.map(s => parseFloat(s.profit));
+
+        const ctx = document.getElementById('profitChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '销售额',
+                        data: revenues,
+                        backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                        borderColor: 'rgba(52, 152, 219, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: '成本',
+                        data: costs,
+                        backgroundColor: 'rgba(231, 76, 60, 0.7)',
+                        borderColor: 'rgba(231, 76, 60, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: '利润',
+                        data: profits,
+                        type: 'line',
+                        borderColor: 'rgba(39, 174, 96, 1)',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ¥' + ctx.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '¥' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        /*]]>*/
+    </script>
+</body>
+</html>

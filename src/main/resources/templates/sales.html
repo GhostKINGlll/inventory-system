@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>销售管理</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>进销存管理系统</h1>
+            <div style="margin: 8px 0; font-size: 14px; color: #666;">
+                👤 <span th:text="${session.currentUser != null ? session.currentUser.username : '游客'}"></span>
+                <span th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">
+                    | <a th:href="@{/admin/users}" style="color:#3498db;">管理员面板</a>
+                </span>
+                | <a th:href="@{/logout}" style="color:#e74c3c;">退出</a>
+            </div>
+            <div class="nav">
+                <a th:href="@{/}">首页</a>
+                <a th:href="@{/products}">商品管理</a>
+                <a th:href="@{/purchases}">进货管理</a>
+                <a th:href="@{/sales}" class="active">销售管理</a>
+                <a th:href="@{/stock}">库存查询</a>
+                <a th:href="@{/report}">数据报表</a>
+                <a th:href="@{/ai/chat}">AI助手</a>
+                <a th:href="@{/feedback}">用户反馈</a>
+                <a th:href="@{/admin/users}" th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">管理员面板</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>销售记录</h2>
+            
+            <div style="margin-bottom: 15px;">
+                <button class="btn btn-primary" onclick="showModal('saleModal')">+ 新增销售</button>
+                <button class="btn btn-warning" onclick="showModal('searchModal')">日期查询</button>
+                <a th:href="@{/sales}" class="btn btn-primary">刷新</a>
+            </div>
+
+            <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>商品名称</th>
+                        <th>客户</th>
+                        <th>规格</th>
+                        <th>数量</th>
+                        <th>单价</th>
+                        <th>总金额</th>
+                        <th>状态</th>
+                        <th>销售日期</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="sale : ${sales}">
+                        <td th:text="${sale.id}"></td>
+                        <td th:text="${sale.product.name}"></td>
+                        <td th:text="${sale.customerEntity != null ? sale.customerEntity.name : sale.customer}"></td>
+                        <td th:text="${sale.productSku != null ? sale.productSku.color + '/' + sale.productSku.size : '默认'}"></td>
+                        <td th:text="${sale.quantity}"></td>
+                        <td th:text="${sale.unitPrice}"></td>
+                        <td th:text="${sale.totalAmount}"></td>
+                        <td><span class="status-badge" th:text="${sale.status}"></span></td>
+                        <td th:text="${sale.saleDate}"></td>
+                        <td th:text="${sale.remark}"></td>
+                        <td>
+                            <form th:action="@{/sales/delete/{id}(id=${sale.id})}" method="post">
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('确认删除？')">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="saleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新增销售</h3>
+                <span class="modal-close" onclick="hideModal('saleModal')">&times;</span>
+            </div>
+            
+            <div class="ocr-box">
+                <label class="ocr-label">📷 扫码识别图片</label>
+                <input type="file" id="saleImage" accept="image/*" onchange="uploadImage('sale')">
+                <div id="saleOcrResult" class="ocr-result"></div>
+            </div>
+            
+            <form th:action="@{/sales/save}" method="post">
+                <div class="form-group">
+                    <label>商品（可输入搜索）</label>
+                    <input type="text" id="saleProductInput" list="saleProductList" autocomplete="off" required placeholder="输入商品名称搜索">
+                    <input type="hidden" name="productId" id="saleProductId">
+                    <datalist id="saleProductList">
+                        <option th:each="product : ${products}" th:value="${product.id}" th:text="${product.name + ' [' + product.specification + '] 库存:' + product.totalStock}"></option>
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label>选择客户 (可选)</label>
+                    <select id="saleCustomerSelect" name="customerId" onchange="updateCustomerName()">
+                        <option value="">-- 散客/未选择 --</option>
+                        <option th:each="c : ${customers}" th:value="${c.id}" th:text="${c.name + ' (' + c.settlementMode + ')'}" th:data-name="${c.name}"></option>
+                    </select>
+                    <input type="hidden" name="customer" id="saleCustomerName">
+                </div>
+                <div class="form-group">
+                    <label>销售数量</label>
+                    <input type="number" name="quantity" id="saleQuantity" required>
+                </div>
+                <div class="form-group">
+                    <label>销售单价</label>
+                    <input type="number" step="0.01" name="unitPrice" id="salePrice" required>
+                </div>
+                <div class="form-group">
+                    <label>销售日期</label>
+                    <input type="date" name="saleDate" required>
+                </div>
+                <div class="form-group">
+                    <label>订单状态</label>
+                    <select name="status">
+                        <option value="已完成">已完成</option>
+                        <option value="待发货">待发货</option>
+                        <option value="待生产">待生产</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <textarea name="remark" id="saleRemark"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="button" class="btn btn-danger" onclick="hideModal('saleModal')">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="searchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>日期查询</h3>
+                <span class="modal-close" onclick="hideModal('searchModal')">&times;</span>
+            </div>
+            <form th:action="@{/sales/search}" method="get">
+                <div class="form-group">
+                    <label>开始日期</label>
+                    <input type="date" name="startDate" required>
+                </div>
+                <div class="form-group">
+                    <label>结束日期</label>
+                    <input type="date" name="endDate" required>
+                </div>
+                <button type="submit" class="btn btn-primary">查询</button>
+                <button type="button" class="btn btn-danger" onclick="hideModal('searchModal')">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; background: #e3f2fd; color: #1976d2; }
+    </style>
+    <script>
+        function showModal(id) { document.getElementById(id).classList.add('show'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+        
+        var lastSaleProductId = '';
+        document.getElementById('saleProductInput').addEventListener('input', function() {
+            var input = this.value;
+            var datalist = document.getElementById('saleProductList');
+            var options = datalist.getElementsByTagName('option');
+            var found = false;
+            for (var i = 0; i < options.length; i++) {
+                if (options[i].value === input) {
+                    document.getElementById('saleProductId').value = input;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                for (var i = 0; i < options.length; i++) {
+                    if (options[i].textContent.toLowerCase().includes(input.toLowerCase())) {
+                        document.getElementById('saleProductId').value = options[i].value;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (found) {
+                var pid = document.getElementById('saleProductId').value;
+                if (pid && pid !== lastSaleProductId) {
+                    lastSaleProductId = pid;
+                    fetch('/products/api/' + pid)
+                        .then(function(r) { return r.json(); })
+                        .then(function(product) {
+                            if (product && product.sellingPrice) {
+                                document.getElementById('salePrice').value = product.sellingPrice;
+                            }
+                        });
+                }
+            }
+        });
+        
+        function uploadImage(type) {
+            const input = document.getElementById(type + 'Image');
+            const file = input.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const resultDiv = document.getElementById(type + 'OcrResult');
+            resultDiv.innerHTML = '<span class="ocr-loading">识别中...</span>';
+            
+            fetch('/api/ocr/recognize', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultDiv.innerHTML = '<span class="ocr-error">' + data.error + '</span>';
+                } else {
+                    if (data.quantity) {
+                        document.getElementById('saleQuantity').value = data.quantity;
+                    }
+                    if (data.sellingPrice) {
+                        document.getElementById('salePrice').value = data.sellingPrice;
+                    }
+                    resultDiv.innerHTML = '<span class="ocr-success">✓ 识别成功</span>';
+                    if (data.rawText) {
+                        console.log('原始文本:', data.rawText);
+                    }
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<span class="ocr-error">识别失败: ' + error + '</span>';
+            });
+        }
+
+        function updateCustomerName() {
+            const select = document.getElementById('saleCustomerSelect');
+            const hidden = document.getElementById('saleCustomerName');
+            if (select.selectedIndex > 0) {
+                hidden.value = select.options[select.selectedIndex].getAttribute('data-name');
+            } else {
+                hidden.value = '散客';
+            }
+        }
+        
+        // Auto fetch tiered price when quantity changes
+        document.getElementById('saleQuantity').addEventListener('input', function() {
+            const qty = parseInt(this.value);
+            const prodId = document.getElementById('saleProductId').value;
+            if (!qty || !prodId) return;
+            
+            fetch('/api/tiered-prices?productId=' + prodId)
+                .then(res => res.json())
+                .then(prices => {
+                    prices.sort((a, b) => b.minQuantity - a.minQuantity);
+                    for (const p of prices) {
+                        if (qty >= p.minQuantity) {
+                            document.getElementById('salePrice').value = p.price;
+                            break;
+                        }
+                    }
+                });
+        });
+    </script>
+</body>
+</html>

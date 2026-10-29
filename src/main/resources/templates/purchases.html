@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>进货管理</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>进销存管理系统</h1>
+            <div style="margin: 8px 0; font-size: 14px; color: #666;">
+                👤 <span th:text="${session.currentUser != null ? session.currentUser.username : '游客'}"></span>
+                <span th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">
+                    | <a th:href="@{/admin/users}" style="color:#3498db;">管理员面板</a>
+                </span>
+                | <a th:href="@{/logout}" style="color:#e74c3c;">退出</a>
+            </div>
+            <div class="nav">
+                <a th:href="@{/}">首页</a>
+                <a th:href="@{/products}">商品管理</a>
+                <a th:href="@{/purchases}" class="active">进货管理</a>
+                <a th:href="@{/sales}">销售管理</a>
+                <a th:href="@{/stock}">库存查询</a>
+                <a th:href="@{/report}">数据报表</a>
+                <a th:href="@{/customers}">客户管理</a>
+                <a th:href="@{/samples}" class="nav-sample" th:if="${session.currentUser != null && (session.currentUser.industryMode == 'accessory' || session.currentUser.industryMode == 'mixed')}">打样管理</a>
+                <a th:href="@{/ai/chat}">AI助手</a>
+                <a th:href="@{/feedback}">用户反馈</a>
+                <a th:href="@{/admin/users}" th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">管理员面板</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>进货记录</h2>
+            
+            <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+            <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+            
+            <div class="toolbar">
+                <form th:action="@{/purchases/import}" method="post" enctype="multipart/form-data" style="display:inline;">
+                    <label class="btn btn-primary file-input-label">
+                        📥 导入Excel
+                        <input type="file" name="file" accept=".xlsx,.xls" style="display:none;" onchange="this.form.submit()">
+                    </label>
+                </form>
+                <button class="btn btn-primary" onclick="showModal('purchaseModal')">+ 新增进货</button>
+                <button class="btn btn-warning" onclick="showModal('searchModal')">日期查询</button>
+                <a th:href="@{/purchases}" class="btn btn-primary">刷新</a>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>商品名称</th>
+                        <th>规格</th>
+                        <th>数量</th>
+                        <th>单价</th>
+                        <th>总金额</th>
+                        <th>供应商</th>
+                        <th>进货日期</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="purchase : ${purchases}">
+                        <td th:text="${purchase.id}"></td>
+                        <td th:text="${purchase.product.name}"></td>
+                        <td th:text="${purchase.productSku != null ? purchase.productSku.color + '/' + purchase.productSku.size : '默认'}"></td>
+                        <td th:text="${purchase.quantity}"></td>
+                        <td th:text="${purchase.unitPrice}"></td>
+                        <td th:text="${purchase.totalAmount}"></td>
+                        <td th:text="${purchase.supplier}"></td>
+                        <td th:text="${purchase.purchaseDate}"></td>
+                        <td th:text="${purchase.remark}"></td>
+                        <td>
+                            <form th:action="@{/purchases/delete/{id}(id=${purchase.id})}" method="post">
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('确认删除？')">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="purchaseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新增进货</h3>
+                <span class="modal-close" onclick="hideModal('purchaseModal')">&times;</span>
+            </div>
+            <form th:action="@{/purchases/save}" method="post">
+                <div class="form-group">
+                    <label>商品（可输入搜索）</label>
+                    <input type="text" id="productInput" list="productList" autocomplete="off" required placeholder="输入商品名称搜索">
+                    <input type="hidden" name="productId" id="productId">
+                    <datalist id="productList">
+                        <option th:each="product : ${products}" th:value="${product.id}" th:text="${product.name + ' [' + product.specification + ']'}"></option>
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label>进货数量</label>
+                    <input type="number" name="quantity" required>
+                </div>
+                <div class="form-group">
+                    <label>进货单价</label>
+                    <input type="number" step="0.01" name="unitPrice" required>
+                </div>
+                <div class="form-group">
+                    <label>供应商</label>
+                    <input type="text" name="supplier">
+                </div>
+                <div class="form-group">
+                    <label>进货日期</label>
+                    <input type="date" name="purchaseDate" required>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <textarea name="remark"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="button" class="btn btn-danger" onclick="hideModal('purchaseModal')">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="searchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>日期查询</h3>
+                <span class="modal-close" onclick="hideModal('searchModal')">&times;</span>
+            </div>
+            <form th:action="@{/purchases/search}" method="get">
+                <div class="form-group">
+                    <label>开始日期</label>
+                    <input type="date" name="startDate" required>
+                </div>
+                <div class="form-group">
+                    <label>结束日期</label>
+                    <input type="date" name="endDate" required>
+                </div>
+                <button type="submit" class="btn btn-primary">查询</button>
+                <button type="button" class="btn btn-danger" onclick="hideModal('searchModal')">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showModal(id) { document.getElementById(id).classList.add('show'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+        
+        var lastProductId = '';
+        document.getElementById('productInput').addEventListener('input', function() {
+            var input = this.value;
+            var datalist = document.getElementById('productList');
+            var options = datalist.getElementsByTagName('option');
+            var found = false;
+            for (var i = 0; i < options.length; i++) {
+                if (options[i].value === input) {
+                    document.getElementById('productId').value = input;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                for (var i = 0; i < options.length; i++) {
+                    if (options[i].textContent.toLowerCase().includes(input.toLowerCase())) {
+                        document.getElementById('productId').value = options[i].value;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (found) {
+                var pid = document.getElementById('productId').value;
+                if (pid && pid !== lastProductId) {
+                    lastProductId = pid;
+                    fetch('/products/api/' + pid)
+                        .then(function(r) { return r.json(); })
+                        .then(function(product) {
+                            if (product && product.costPrice) {
+                                document.querySelector('input[name="unitPrice"]').value = product.costPrice;
+                            }
+                        });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

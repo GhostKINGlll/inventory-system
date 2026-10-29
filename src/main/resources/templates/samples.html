@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打样管理</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .status-tag { padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .status-待打样 { background: #fff3cd; color: #856404; }
+        .status-打样中 { background: #d1ecf1; color: #0c5460; }
+        .status-已寄样 { background: #d4edda; color: #155724; }
+        .status-已确认 { background: #cce5ff; color: #004085; }
+        .status-已取消 { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>进销存管理系统</h1>
+            <div class="nav">
+                <a th:href="@{/}">首页</a>
+                <a th:href="@{/products}">商品管理</a>
+                <a th:href="@{/purchases}">进货管理</a>
+                <a th:href="@{/sales}">销售管理</a>
+                <a th:href="@{/stock}">库存查询</a>
+                <a th:href="@{/report}">数据报表</a>
+                <a th:href="@{/customers}">客户管理</a>
+                <a th:href="@{/samples}" class="active">打样管理</a>
+                <a th:href="@{/ai/chat}">AI助手</a>
+                <a th:href="@{/feedback}">用户反馈</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>打样单管理</h2>
+            <div style="margin-bottom: 15px;">
+                <button class="btn btn-primary" onclick="showModal('sampleModal')">+ 新增打样</button>
+                <a th:href="@{/samples}" class="btn btn-primary">刷新</a>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>客户</th>
+                        <th>产品名称</th>
+                        <th>材质/工艺</th>
+                        <th>打样费</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="s : ${samples}">
+                        <td th:text="${s.sampleDate}"></td>
+                        <td th:text="${s.customer != null ? s.customer.name : '散客'}"></td>
+                        <td th:text="${s.productName}"></td>
+                        <td th:text="${s.material} + ' / ' + ${s.craft}"></td>
+                        <td th:text="${s.sampleFee}"></td>
+                        <td><span class="status-tag" th:classappend="'status-' + ${s.status}" th:text="${s.status}"></span></td>
+                        <td>
+                            <select onchange="updateStatus([[${s.id}]], this.value)" style="padding: 3px; font-size: 12px;">
+                                <option value="">流转</option>
+                                <option value="打样中">打样中</option>
+                                <option value="已寄样">已寄样</option>
+                                <option value="已确认">已确认</option>
+                                <option value="已取消">已取消</option>
+                            </select>
+                            <form th:action="@{/samples/delete/{id}(id=${s.id})}" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-danger" style="padding: 3px 8px; font-size: 12px;" onclick="return confirm('确认删除？')">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="sampleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新增打样单</h3>
+                <span class="modal-close" onclick="hideModal('sampleModal')">&times;</span>
+            </div>
+            <form th:action="@{/samples/save}" method="post">
+                <div class="form-group">
+                    <label>客户 (可选)</label>
+                    <select name="customerId">
+                        <option value="">-- 散客 --</option>
+                        <option th:each="c : ${customers}" th:value="${c.id}" th:text="${c.name}"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>产品名称 *</label>
+                    <input type="text" name="productName" required placeholder="如: 定制金属拉链">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>材质</label>
+                        <input type="text" name="material" placeholder="如: 铜">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>工艺</label>
+                        <input type="text" name="craft" placeholder="如: 电镀">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>打样要求</label>
+                    <textarea name="requirements" placeholder="尺寸、颜色、LOGO等特殊要求..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>打样费</label>
+                    <input type="number" step="0.01" name="sampleFee" value="0">
+                </div>
+                <div class="form-group">
+                    <label>打样日期</label>
+                    <input type="date" name="sampleDate">
+                </div>
+                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="button" class="btn btn-danger" onclick="hideModal('sampleModal')">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showModal(id) { document.getElementById(id).classList.add('show'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+        
+        function updateStatus(id, status) {
+            if (!status) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/samples/status/' + id;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'status';
+            input.value = status;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品管理</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>进销存管理系统</h1>
+            <div style="margin: 8px 0; font-size: 14px; color: #666;">
+                👤 <span th:text="${session.currentUser != null ? session.currentUser.username : '游客'}"></span>
+                <span th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">
+                    | <a th:href="@{/admin/users}" style="color:#3498db;">管理员面板</a>
+                </span>
+                | <a th:href="@{/logout}" style="color:#e74c3c;">退出</a>
+            </div>
+            <div class="nav">
+                <a th:href="@{/}">首页</a>
+                <a th:href="@{/products}" class="active">商品管理</a>
+                <a th:href="@{/purchases}">进货管理</a>
+                <a th:href="@{/sales}">销售管理</a>
+                <a th:href="@{/stock}">库存查询</a>
+                <a th:href="@{/report}">数据报表</a>
+                <a th:href="@{/ai/chat}">AI助手</a>
+                <a th:href="@{/feedback}">用户反馈</a>
+                <a th:href="@{/admin/users}" th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">管理员面板</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>商品列表</h2>
+            
+            <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+            <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div class="toolbar" style="margin-bottom: 0;">
+                    <form th:action="@{/products/import}" method="post" enctype="multipart/form-data" style="display:inline;">
+                        <label class="btn btn-primary file-input-label">
+                            📥 传统导入
+                            <input type="file" name="file" accept=".xlsx,.xls" style="display:none;" onchange="this.form.submit()">
+                        </label>
+                    </form>
+                    <button class="btn btn-success" onclick="showSmartImport()">🤖 AI 智能导入</button>
+                    <a th:href="@{/products}" class="btn btn-primary">刷新</a>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label>行业模式:</label>
+                    <select id="industryModeSelect" onchange="switchIndustryMode(this.value)" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="clothing" th:selected="${industryMode == 'clothing'}">服装成衣</option>
+                        <option value="accessory" th:selected="${industryMode == 'accessory'}">辅料配件</option>
+                        <option value="mixed" th:selected="${industryMode == 'mixed'}">混合模式</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="search-box">
+                <form th:action="@{/products/search}" method="get">
+                    <input type="text" name="keyword" placeholder="搜索商品名称或规格...">
+                    <button type="submit" class="btn btn-primary">搜索</button>
+                </form>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>商品名称</th>
+                        <th class="field-clothing">品牌</th>
+                        <th class="field-clothing">季节</th>
+                        <th class="field-accessory">材质</th>
+                        <th class="field-accessory">工艺</th>
+                        <th class="field-accessory">起订量</th>
+                        <th>规格</th>
+                        <th>总库存</th>
+                        <th>进价</th>
+                        <th>售价</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="product : ${products}">
+                        <td th:text="${product.id}"></td>
+                        <td th:text="${product.name}"></td>
+                        <td class="field-clothing" th:text="${product.brand}"></td>
+                        <td class="field-clothing" th:text="${product.year + ' ' + product.season}"></td>
+                        <td class="field-accessory" th:text="${product.material}"></td>
+                        <td class="field-accessory" th:text="${product.craft}"></td>
+                        <td class="field-accessory" th:text="${product.minOrderQty}"></td>
+                        <td th:text="${product.specification}"></td>
+                        <td th:text="${product.totalStock}"></td>
+                        <td th:text="${product.costPrice}"></td>
+                        <td th:text="${product.sellingPrice}"></td>
+                        <td>
+                            <button class="btn btn-info" th:onclick="'showTieredPriceModal(' + ${product.id} + ')'" style="font-size: 12px; padding: 3px 8px;">阶梯价</button>
+                            <button class="btn btn-warning" th:onclick="'editProduct(' + ${product.id} + ')'" style="font-size: 12px; padding: 3px 8px;">编辑</button>
+                            <form th:action="@{/products/delete/{id}(id=${product.id})}" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('确认删除？')" style="font-size: 12px; padding: 3px 8px;">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <button class="floating-btn" onclick="showModal('productModal')">+</button>
+        </div>
+    </div>
+
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 th:text="${product != null ? '编辑商品' : '新增商品'}">新增商品</h3>
+                <span class="modal-close" onclick="hideModal('productModal')">&times;</span>
+            </div>
+            <form th:action="@{/products/save}" method="post">
+                <input type="hidden" name="id" th:value="${product?.id}">
+                <div class="form-group">
+                    <label>商品名称 *</label>
+                    <input type="text" name="name" th:value="${product?.name}" required>
+                </div>
+                <div class="form-group field-clothing">
+                    <label>品牌</label>
+                    <input type="text" name="brand" th:value="${product?.brand}">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group field-clothing" style="flex: 1;">
+                        <label>年份</label>
+                        <input type="text" name="year" th:value="${product?.year ?: #dates.format(new java.util.Date(), 'yyyy')}">
+                    </div>
+                    <div class="form-group field-clothing" style="flex: 1;">
+                        <label>季节</label>
+                        <select name="season">
+                            <option value="春" th:selected="${product?.season == '春'}">春季</option>
+                            <option value="夏" th:selected="${product?.season == '夏'}">夏季</option>
+                            <option value="秋" th:selected="${product?.season == '秋'}">秋季</option>
+                            <option value="冬" th:selected="${product?.season == '冬'}">冬季</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group field-accessory">
+                    <label>材质</label>
+                    <input type="text" name="material" th:value="${product?.material}" placeholder="如: 铜/尼龙/纯棉">
+                </div>
+                <div class="form-group field-accessory">
+                    <label>工艺</label>
+                    <input type="text" name="craft" th:value="${product?.craft}" placeholder="如: 电镀/丝印/印花">
+                </div>
+                <div class="form-group field-accessory">
+                    <label>起订量 (MOQ)</label>
+                    <input type="number" name="minOrderQty" th:value="${product?.minOrderQty}" value="0">
+                </div>
+                <div class="form-group">
+                    <label>规格型号</label>
+                    <input type="text" name="specification" th:value="${product?.specification}">
+                </div>
+                
+                <div class="divider" style="margin: 15px 0; border-top: 1px solid #eee; position: relative;">
+                    <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px; color: #666;">默认规格/价格 (用于快速录入)</span>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>进价</label>
+                        <input type="number" step="0.01" name="costPrice" th:value="${product?.costPrice}" value="0">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>售价</label>
+                        <input type="number" step="0.01" name="sellingPrice" th:value="${product?.sellingPrice}" value="0">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>初始库存</label>
+                        <input type="number" name="stockQuantity" th:value="${product?.stockQuantity}" value="0">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>最低库存</label>
+                        <input type="number" name="minStock" th:value="${product?.minStock}" value="0">
+                    </div>
+                </div>
+                <p style="font-size: 12px; color: #888; margin-bottom: 10px;">* 添加后可在详情页添加多规格</p>
+                <button type="submit" class="btn btn-primary" th:text="${product != null ? '更新' : '保存'}">保存</button>
+                <button type="button" class="btn btn-danger" onclick="hideModal('productModal')">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="tieredPriceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>阶梯报价配置</h3>
+                <span class="modal-close" onclick="hideModal('tieredPriceModal')">&times;</span>
+            </div>
+            <input type="hidden" id="tpProductId">
+            <table style="margin-bottom: 15px;">
+                <thead><tr><th>数量下限</th><th>单价(元)</th><th>操作</th></tr></thead>
+                <tbody id="tpTable">
+                    <tr><td><input type="number" class="tp-min" value="0"></td><td><input type="number" step="0.01" class="tp-price"></td><td><button onclick="this.closest('tr').remove()">删除</button></td></tr>
+                </tbody>
+            </table>
+            <button class="btn btn-primary" onclick="addTierRow()" style="margin-bottom: 10px;">+ 添加阶梯</button>
+            <br>
+            <button type="button" class="btn btn-primary" onclick="saveTieredPrices()">保存</button>
+            <button type="button" class="btn btn-danger" onclick="hideModal('tieredPriceModal')">取消</button>
+        </div>
+    </div>
+
+    <!-- 智能导入弹窗 -->
+    <div id="smartImportModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>🤖 AI 智能表格导入</h3>
+                <span class="modal-close" onclick="hideModal('smartImportModal')">&times;</span>
+            </div>
+            <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
+                请从 Excel 中复制数据（包含表头）并粘贴到下方。AI 会自动识别列名对应关系。
+            </p>
+            <textarea id="smartImportInput" rows="8" style="width: 100%; padding: 10px; font-family: monospace;" placeholder="在此粘贴 Excel 数据...&#10;例如：&#10;品名	材质	工艺	规格	售价	库存&#10;四合扣	树脂	磨砂	15mm	0.5	1000"></textarea>
+            
+            <button id="analyzeBtn" class="btn btn-primary" onclick="analyzeSmartImport()" style="margin-top: 10px; width: 100%;">
+                第一步：AI 识别列名
+            </button>
+
+            <div id="mappingSection" style="display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                <h4 style="margin: 0 0 10px 0;">请确认列名对应关系（可手动调整）：</h4>
+                <div id="mappingContainer"></div>
+                <button class="btn btn-success" onclick="submitSmartImport()" style="margin-top: 15px; width: 100%;">
+                    第二步：确认并导入
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showModal(id) { document.getElementById(id).classList.add('show'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+        function editProduct(id) { window.location.href = '/products/edit/' + id; }
+        
+        function switchIndustryMode(mode) {
+            fetch('/api/settings/industry-mode?mode=' + mode, { method: 'POST' })
+                .then(res => res.json()).then(data => { if (data.success) location.reload(); });
+        }
+        
+        const mode = '[[${industryMode}]]';
+        document.querySelectorAll('.field-clothing').forEach(el => { if (mode !== 'clothing' && mode !== 'mixed') el.style.display = 'none'; });
+        document.querySelectorAll('.field-accessory').forEach(el => { if (mode !== 'accessory' && mode !== 'mixed') el.style.display = 'none'; });
+
+        // 编辑时自动弹出模态框
+        const editProductId = '[[${product?.id}]]';
+        if (editProductId && editProductId !== '') { showModal('productModal'); }
+
+        // --- 智能导入逻辑 ---
+        let smartImportRows = [];
+        
+        function showSmartImport() {
+            showModal('smartImportModal');
+            document.getElementById('mappingSection').style.display = 'none';
+            document.getElementById('analyzeBtn').innerText = '第一步：AI 识别列名';
+            document.getElementById('analyzeBtn').disabled = false;
+            document.getElementById('smartImportInput').value = '';
+        }
+
+        function analyzeSmartImport() {
+            const raw = document.getElementById('smartImportInput').value.trim();
+            if (!raw) return alert('请先粘贴数据');
+
+            const rows = raw.split('\n').map(r => r.split(/\t/));
+            const headers = rows[0];
+            smartImportRows = rows.slice(1).filter(r => r.length > 1);
+
+            const btn = document.getElementById('analyzeBtn');
+            btn.innerText = 'AI 分析中...';
+            btn.disabled = true;
+
+            fetch('/products/api/import/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(headers)
+            })
+            .then(res => res.json())
+            .then(mapping => renderMappingUI(headers, mapping))
+            .catch(err => {
+                alert('AI 识别失败，请重试');
+                btn.innerText = '第一步：AI 识别列名';
+                btn.disabled = false;
+            });
+        }
+
+        function renderMappingUI(headers, mapping) {
+            const container = document.getElementById('mappingContainer');
+            container.innerHTML = '';
+            document.getElementById('mappingSection').style.display = 'block';
+            document.getElementById('analyzeBtn').style.display = 'none';
+
+            const fields = [
+                { key: 'name', label: '商品名称 *' },
+                { key: 'specification', label: '规格/颜色' },
+                { key: 'material', label: '材质' },
+                { key: 'craft', label: '工艺' },
+                { key: 'sellingPrice', label: '售价' },
+                { key: 'costPrice', label: '成本价' },
+                { key: 'stock', label: '库存' },
+                { key: 'minStock', label: '最低库存' }
+            ];
+
+            fields.forEach(f => {
+                const guessed = mapping[f.key] || '';
+                const options = headers.map((h, i) => `<option value="${i}" ${h === guessed ? 'selected' : ''}>${h}</option>`).join('');
+                
+                container.innerHTML += `
+                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                        <span style="width: 100px; font-weight: bold;">${f.label}:</span>
+                        <select data-field="${f.key}" style="flex: 1; padding: 5px;">
+                            <option value="-1">-- 忽略此列 --</option>
+                            ${options}
+                        </select>
+                    </div>
+                `;
+            });
+        }
+
+        function submitSmartImport() {
+            const mapping = {};
+            document.querySelectorAll('#mappingContainer select').forEach(sel => {
+                mapping[sel.dataset.field] = parseInt(sel.value);
+            });
+
+            if (mapping['name'] === -1) return alert('必须指定“商品名称”列');
+
+            const btn = document.querySelector('#mappingSection .btn-success');
+            btn.innerText = '导入中...';
+            btn.disabled = true;
+
+            fetch('/products/api/import/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rows: smartImportRows, mapping: mapping })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('成功导入 ' + data.count + ' 条商品！');
+                    location.reload();
+                } else {
+                    alert('导入失败: ' + (data.error || '未知错误'));
+                    btn.innerText = '第二步：确认并导入';
+                    btn.disabled = false;
+                }
+            });
+        }
+
+        function copyProduct(id) {
+            fetch('/products/api/' + id)
+                .then(res => res.json())
+                .then(p => {
+                    document.querySelector('[name="name"]').value = p.name;
+                    if(document.querySelector('[name="material"]')) document.querySelector('[name="material"]').value = p.material || '';
+                    if(document.querySelector('[name="craft"]')) document.querySelector('[name="craft"]').value = p.craft || '';
+                    if(document.querySelector('[name="specification"]')) document.querySelector('[name="specification"]').value = p.specification || '';
+                    document.querySelector('[name="costPrice"]').value = p.costPrice || 0;
+                    document.querySelector('[name="sellingPrice"]').value = p.sellingPrice || 0;
+                    showModal('productModal');
+                });
+        }
+
+        function showTieredPriceModal(productId) {
+            document.getElementById('tpProductId').value = productId;
+            document.getElementById('tpTable').innerHTML = '<tr><td><input type="number" class="tp-min" value="0"></td><td><input type="number" step="0.01" class="tp-price"></td><td><button onclick="this.closest(\'tr\').remove()">删除</button></td></tr>';
+            showModal('tieredPriceModal');
+        }
+
+        function addTierRow() {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td><input type="number" class="tp-min"></td><td><input type="number" step="0.01" class="tp-price"></td><td><button onclick="this.closest(\'tr\').remove()">删除</button></td>';
+            document.getElementById('tpTable').appendChild(tr);
+        }
+
+        function saveTieredPrices() {
+            const productId = document.getElementById('tpProductId').value;
+            const rows = document.querySelectorAll('#tpTable tr');
+            const prices = [];
+            rows.forEach(r => {
+                const min = r.querySelector('.tp-min').value;
+                const price = r.querySelector('.tp-price').value;
+                if (min && price) prices.push({ minQuantity: parseInt(min), price: parseFloat(price) });
+            });
+
+            fetch('/api/tiered-prices?productId=' + productId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(prices)
+            }).then(res => res.json()).then(data => {
+                if (data.success) { alert('保存成功'); hideModal('tieredPriceModal'); }
+            });
+        }
+    </script>
+</body>
+</html>

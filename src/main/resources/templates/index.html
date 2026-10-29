@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>进销存管理系统</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>进销存管理系统</h1>
+            <div style="margin: 8px 0; font-size: 14px; color: #666;">
+                👤 <span th:text="${session.currentUser != null ? session.currentUser.username : '游客'}"></span>
+                <span th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">
+                    | <a th:href="@{/admin/users}" style="color:#3498db;">管理员面板</a>
+                </span>
+                | <a th:href="@{/logout}" style="color:#e74c3c;">退出</a>
+            </div>
+            <div class="nav">
+                <a th:href="@{/}" class="active">首页</a>
+                <a th:href="@{/products}">商品管理</a>
+                <a th:href="@{/purchases}">进货管理</a>
+                <a th:href="@{/sales}">销售管理</a>
+                <a th:href="@{/stock}">库存查询</a>
+                <a th:href="@{/report}">数据报表</a>
+                <a th:href="@{/customers}">客户管理</a>
+                <a th:href="@{/ai/chat}">AI助手</a>
+                <a th:href="@{/feedback}">用户反馈</a>
+                <a th:href="@{/admin/users}" th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">管理员面板</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>欢迎使用进销存管理系统</h2>
+            <p style="margin: 20px 0; font-size: 18px;">
+                本系统提供商品管理、进货管理、销售管理和库存查询功能。
+            </p>
+            <div style="display: flex; gap: 15px; margin-top: 30px;">
+                <a th:href="@{/products}" class="btn btn-primary">商品管理</a>
+                <a th:href="@{/purchases}" class="btn btn-primary">进货管理</a>
+                <a th:href="@{/sales}" class="btn btn-primary">销售管理</a>
+                <a th:href="@{/stock}" class="btn btn-primary">库存查询</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

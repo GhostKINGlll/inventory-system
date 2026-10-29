@@ -1,0 +1,23 @@
+target/
+build/
+.git/
+.gitignore
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.log
+*.err
+
+# 本地敏感配置，绝不进入镜像
+src/main/resources/application-local.yml
+src/main/resources/application-local.properties
+.env
+.env.local
+
+.claude/
+README.md
+Dockerfile
+docker-compose.yml

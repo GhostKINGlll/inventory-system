@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户反馈 - 进销存管理系统</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>进销存管理系统</h1>
+            <div style="margin: 8px 0; font-size: 14px; color: #666;">
+                👤 <span th:text="${session.currentUser != null ? session.currentUser.username : '游客'}"></span>
+                | <a th:href="@{/logout}" style="color:#e74c3c;">退出</a>
+            </div>
+            <div class="nav">
+                <a th:href="@{/}">首页</a>
+                <a th:href="@{/products}">商品管理</a>
+                <a th:href="@{/purchases}">进货管理</a>
+                <a th:href="@{/sales}">销售管理</a>
+                <a th:href="@{/stock}">库存查询</a>
+                <a th:href="@{/report}">数据报表</a>
+                <a th:href="@{/customers}">客户管理</a>
+                <a th:href="@{/samples}" th:if="${session.currentUser != null && (session.currentUser.industryMode == 'accessory' || session.currentUser.industryMode == 'mixed')}">打样管理</a>
+                <a th:href="@{/ai/chat}">AI助手</a>
+                <a th:href="@{/feedback}" class="active">用户反馈</a>
+                <a th:href="@{/admin/users}" th:if="${session.currentUser != null && session.currentUser.role == 'ADMIN'}">管理员面板</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card" style="max-width:600px; margin:20px auto;">
+            <h2>用户反馈</h2>
+            <p style="margin-bottom:20px; color:#666;">欢迎提出您的建议或问题，我们将通过邮件回复您。</p>
+            <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+            <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+            <form th:action="@{/feedback}" method="post">
+                <div class="form-group">
+                    <label>主题</label>
+                    <input type="text" name="subject" required placeholder="请输入反馈主题">
+                </div>
+                <div class="form-group">
+                    <label>内容</label>
+                    <textarea name="message" rows="6" required placeholder="请详细描述您的建议或问题" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; resize:vertical;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">提交反馈</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

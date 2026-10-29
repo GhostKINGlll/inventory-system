@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户对账单</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .statement-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .summary-card { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 30px; }
+        .summary-item strong { font-size: 24px; display: block; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-待结款 { background: #ffe6e6; color: #d32f2f; }
+        .status-已完成 { background: #e6f4ea; color: #2e7d32; }
+        @media print { .no-print { display: none; } .container { max-width: 100%; } }
+    </style>
+</head>
+<body>
+    <div class="header no-print">
+        <div class="container">
+            <h1>进销存管理系统</h1>
+            <div class="nav">
+                <a th:href="@{/}">首页</a>
+                <a th:href="@{/customers}" class="active">客户管理</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="statement-header">
+                <h2>客户对账单</h2>
+                <button class="btn btn-primary no-print" onclick="window.print()">🖨️ 打印对账单</button>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-item">
+                    <strong th:text="${customer.name}"></strong>
+                    <span th:text="${customer.type} + ' | ' + ${customer.settlementMode}"></span>
+                </div>
+                <div class="summary-item">
+                    <strong th:text="${totalSales}">0.00</strong>
+                    <span>累计销售金额</span>
+                </div>
+                <div class="summary-item">
+                    <strong th:text="${customer.currentBalance}" style="color: #d32f2f;">0.00</strong>
+                    <span>当前欠款</span>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>商品</th>
+                        <th>规格</th>
+                        <th>数量</th>
+                        <th>单价</th>
+                        <th>金额</th>
+                        <th>状态</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="s : ${sales}">
+                        <td th:text="${s.saleDate}"></td>
+                        <td th:text="${s.product.name}"></td>
+                        <td th:text="${s.productSku != null ? s.productSku.color + '/' + s.productSku.size : '-'}"></td>
+                        <td th:text="${s.quantity}"></td>
+                        <td th:text="${s.unitPrice}"></td>
+                        <td th:text="${s.totalAmount}"></td>
+                        <td><span class="status-badge" th:classappend="'status-' + ${s.status}" th:text="${s.status}"></span></td>
+                        <td th:text="${s.remark}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
